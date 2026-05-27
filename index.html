@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>不動産賃貸管理 入金フローチャート</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+      background: #f0f4f8;
+      min-height: 100vh;
+      padding: 32px 24px 100px;
+      color: #1a202c;
+    }
+
+    header { text-align: center; margin-bottom: 32px; }
+    header h1 { font-size: 22px; font-weight: 700; color: #2d3748; letter-spacing: 0.04em; }
+    header p  { font-size: 13px; color: #718096; margin-top: 6px; }
+
+    /* Legend */
+    .legend { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-bottom: 28px; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #4a5568; }
+    .legend-box  { width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0; }
+
+    /* Cards */
+    .card {
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+      padding: 28px 24px; max-width: 1200px;
+      margin: 0 auto 28px;
+    }
+
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0;
+      flex-wrap: wrap; gap: 8px;
+    }
+    .section-title {
+      font-size: 13px; font-weight: 700; color: #4a5568;
+      letter-spacing: 0.06em;
+    }
+
+    .mermaid-container { overflow-x: auto; min-height: 60px; }
+
+    /* Summary table */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: #2b6cb0; color: #fff; padding: 10px 14px; text-align: left; font-weight: 600; }
+    td { padding: 9px 14px; border-bottom: 1px solid #e2e8f0; vertical-align: top; line-height: 1.7; }
+    tr:nth-child(even) td { background: #f7fafc; }
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+    .badge-blue   { background:#ebf8ff; color:#2b6cb0; }
+    .badge-green  { background:#f0fff4; color:#276749; }
+    .badge-orange { background:#fffaf0; color:#c05621; }
+    .badge-red    { background:#fff5f5; color:#c53030; }
+
+    /* Table edit mode */
+    .tbl-btns { display: flex; gap: 8px; }
+    .tbl-btn {
+      padding: 5px 14px; border-radius: 6px; font-size: 12px;
+      font-family: inherit; cursor: pointer; font-weight: 700;
+      border: none; white-space: nowrap;
+    }
+    .tbl-btn-edit  { background: #ebf8ff; color: #2b6cb0; border: 1px solid #bee3f8; }
+    .tbl-btn-save  { background: #276749; color: #fff; }
+    .tbl-btn-reset { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
+
+    [contenteditable="true"] {
+      background: #fffef0 !important;
+      outline: 2px solid #d69e2e !important;
+      border-radius: 4px;
+      cursor: text;
+      min-width: 40px;
+    }
+    span[contenteditable="true"] { display: inline-block; padding: 1px 3px; }
+    td[contenteditable="true"]   { padding: 7px 12px; }
+
+    footer { text-align: center; font-size: 11px; color: #a0aec0; margin-top: 8px; padding-bottom: 24px; }
+
+    /* ── 編集ボタン（右下固定） ── */
+    .edit-fab {
+      position: fixed; bottom: 28px; right: 28px;
+      background: #2b6cb0; color: white;
+      border: none; border-radius: 50px;
+      padding: 14px 24px; font-size: 15px;
+      font-family: inherit; cursor: pointer;
+      box-shadow: 0 4px 20px rgba(43,108,176,0.45);
+      z-index: 100; transition: background 0.2s;
+    }
+    .edit-fab:hover { background: #2c5282; }
+
+    /* ── オーバーレイ ── */
+    #overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.35); z-index: 200;
+    }
+    #overlay.open { display: block; }
+
+    /* ── 編集パネル ── */
+    #editPanel {
+      position: fixed; top: 0; right: -500px;
+      width: 460px; max-width: 100vw; height: 100vh;
+      background: white; z-index: 300;
+      display: flex; flex-direction: column;
+      transition: right 0.3s ease;
+      box-shadow: -4px 0 24px rgba(0,0,0,0.15);
+    }
+    #editPanel.open { right: 0; }
+    .ep-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; background: #2b6cb0; color: white; flex-shrink: 0;
+    }
+    .ep-header h2 { font-size: 16px; }
+    .ep-header .ep-close {
+      background: none; border: none; color: white;
+      font-size: 22px; cursor: pointer; padding: 2px 8px; border-radius: 4px;
+    }
+    .ep-header .ep-close:hover { background: rgba(255,255,255,0.2); }
+    .ep-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+    .ep-group { margin-bottom: 20px; }
+    .ep-group-title {
+      font-size: 11px; font-weight: 700; color: #2b6cb0;
+      letter-spacing: 0.1em; padding: 5px 0;
+      border-bottom: 2px solid #ebf8ff; margin-bottom: 12px;
+    }
+    .ep-field { margin-bottom: 11px; }
+    .ep-field label { display: block; font-size: 12px; color: #4a5568; margin-bottom: 4px; font-weight: 600; }
+    .ep-field textarea {
+      width: 100%; border: 1px solid #e2e8f0; border-radius: 6px;
+      padding: 8px 10px; font-size: 13px; font-family: inherit;
+      resize: vertical; line-height: 1.55; color: #2d3748; transition: border 0.2s;
+    }
+    .ep-field textarea:focus {
+      outline: none; border-color: #2b6cb0;
+      box-shadow: 0 0 0 3px rgba(43,108,176,0.12);
+    }
+    .ep-hint { font-size: 11px; color: #a0aec0; margin-top: 3px; }
+    .ep-footer {
+      padding: 12px 20px; border-top: 1px solid #e2e8f0;
+      display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;
+    }
+    .ep-btns { display: flex; gap: 10px; }
+    .ep-btns button {
+      flex: 1; padding: 10px; border-radius: 8px;
+      font-size: 14px; font-family: inherit; cursor: pointer; font-weight: 600; border: none;
+    }
+    .btn-reset { background: #f7fafc; color: #4a5568; border: 1px solid #e2e8f0 !important; }
+    .btn-reset:hover { background: #edf2f7; }
+    .btn-save  { background: #2b6cb0; color: white; }
+    .btn-save:hover { background: #2c5282; }
+    .save-msg { text-align: center; color: #276749; font-size: 13px; font-weight: 700; padding: 4px; display: none; }
+    .save-msg.show { display: block; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>不動産賃貸管理　入金フローチャート</h1>
+  <p>入金発生 → 物件識別 → 管理区分判定 → 会計処理　の標準フロー</p>
+</header>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-box" style="background:#2b6cb0;"></div>通常処理ステップ</div>
+  <div class="legend-item"><div class="legend-box" style="background:#d69e2e;border-radius:50%;"></div>判断・分岐</div>
+  <div class="legend-item"><div class="legend-box" style="background:#276749;"></div>処理完了</div>
+  <div class="legend-item"><div class="legend-box" style="background:#c53030;"></div>要確認・例外処理</div>
+  <div class="legend-item"><div class="legend-box" style="background:#6b46c1;"></div>翌月処理</div>
+</div>
+
+<!-- ── フローチャート ── -->
+<div class="card">
+  <div class="section-header">
+    <div class="section-title">■ 入金フローチャート　（入金発生時）</div>
+  </div>
+  <div class="mermaid-container" id="diagram-main"></div>
+</div>
+
+<!-- ── サマリーテーブル ── -->
+<div class="card">
+  <div class="section-header">
+    <div class="section-title">■ 管理区分別　会計処理サマリー</div>
+    <div class="tbl-btns">
+      <button id="tblResetBtn" class="tbl-btn tbl-btn-reset" onclick="resetTableData()" style="display:none;">↩️ リセット</button>
+      <button id="tblEditBtn"  class="tbl-btn tbl-btn-edit"  onclick="toggleTableEdit()">✏️ テーブルを編集</button>
+    </div>
+  </div>
+  <table id="summaryTable">
+    <thead>
+      <tr>
+        <th>管理区分</th>
+        <th>入金時の勘定科目</th>
+        <th>翌月処理・精算</th>
+        <th>収益計上タイミング</th>
+        <th>注意点</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="badge badge-blue">③ 自社オーナー物件（CoAM）</span><br><span data-cell="r1_sub">当月分の賃斓</span></td>
+        <td data-cell="r1_col2">科目：受取賃貸料（営業外収益）<br>取引先：賃貸管理_家賃支払<br>メモタグ：物件名</td>
+        <td data-cell="r1_col3">—（即時計上）</td>
+        <td data-cell="r1_col4">入金月に即計上</td>
+        <td data-cell="r1_col5">何か月分か必ず確認してから計上。</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-blue">③ 自社オーナー物件（CoAM）</span><br><span data-cell="r2_sub">当月分以外の賃料</span></td>
+        <td data-cell="r2_col2">科目：前受収益<br>取引先：賃貸管理_家賃支払<br>★メモタグ：物件名（必ず登録）</td>
+        <td data-cell="r2_col3">翌月末に振替処理<br>前受収益 → 受取賃貸料</td>
+        <td data-cell="r2_col4">翌月末の振替処理後</td>
+        <td data-cell="r2_col5">メモタグへの物件名登録を忘れずに。</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-orange">② 管理受託物件</span><br><span data-cell="r3_sub">既存契約</span></td>
+        <td data-cell="r3_col2">科目：顧客預り金<br>（入金全額）</td>
+        <td data-cell="r3_col3">いえらぶ出金一覧表で物件特定<br>→ 顧客預り金を取消<br>→ 科目：売上高<br>　取引先：賃貸管理_家賃支払<br>　品目：賃貸収入<br>　メモタグ：物件名</td>
+        <td data-cell="r3_col4">翌月処理時（売上高計上）</td>
+        <td data-cell="r3_col5">月末に顧客預り金残高が残らないよう注意。</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-orange">② 管理受託物件</span><br><span data-cell="r4_sub">新規契約（賃料・共益費・礼金）</span></td>
+        <td data-cell="r4_col2">科目：顧客預り金<br>（オーナー送金分）</td>
+        <td data-cell="r4_col3">いえらぶ出金一覧表で物件特定<br>→ 顧客預り金を取消<br>→ 科目：売上高<br>　取引先：賃貸管理_家賃支払<br>　品目：賃貸収入<br>　メモタグ：物件名</td>
+        <td data-cell="r4_col4">翌月処理時（売上高計上）</td>
+        <td data-cell="r4_col5">—</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-orange">② 管理受託物件</span><br><span data-cell="r5_sub">新規契約（敷金）</span></td>
+        <td data-cell="r5_col2">科目：顧客預り金<br>（当社が預かり）</td>
+        <td data-cell="r5_col3">オーナーへの送金なし<br>（当社管理）</td>
+        <td data-cell="r5_col4">返還時に処理</td>
+        <td data-cell="r5_col5">オーナーへ送金しない。当社が管理。</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-orange">② 管理受託物件</span><br><span data-cell="r6_sub">新規契約（新規契約料・24時間サポート・鍵交換代）</span></td>
+        <td data-cell="r6_col2">科目：前受収益<br>（当社収益分）</td>
+        <td data-cell="r6_col3">鍵交換代は業者支払い時に<br>消耗品費へ振替</td>
+        <td data-cell="r6_col4">前受収益計上時</td>
+        <td data-cell="r6_col5">鍵交換代の業者支払い時に消耗品費へ必ず振替。</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-green">① 売買精算関連</span><br><span data-cell="r7_sub">売却（物件を売った）</span></td>
+        <td data-cell="r7_col2">当月分：受取賃貸料（借方）計上<br>※当月PLはマイナス残高になる<br>翌月以降分：前払金（資産）として計上</td>
+        <td data-cell="r7_col3">毎月末：前払金 → 受取賃貸料（借方）へ振替<br>入居者より賃料受取後に相殺されゼロへ<br>→ 翌月よ�*賃貸管理契約締結</td>
+        <td data-cell="r7_col4">入居者賃料受取・相殺後<br>（翌月より管理契約開始）</td>
+        <td data-cell="r7_col5">売買精算書と照合必須。当月PLがマイナスになる点に注意。相殺完了後は② 管理受託物件 新規契約フローへ。</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-green">① 売買精算関連</span><br><span data-cell="r7b_sub">仕入（物件を買った）</span></td>
+        <td data-cell="r7b_col2">当月分：受取賃貸料（貸方）として受取<br>翌月以降分：前受収益（負債）として計上</td>
+        <td data-cell="r7b_col3">毎月末：前受収益 → 受取賃貸料（貸方）へ振替</td>
+        <td data-cell="r7b_col4">翌月以降、振替処理後</td>
+        <td data-cell="r7b_col5">販売後は処理完了。未販売（賃貸中）の場合は③ 自社オーナー物件フローへ。</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-red">識別不明</span><br><span data-cell="r8_sub">仮受金</span></td>
+        <td data-cell="r8_col2">科目：仮受金</td>
+        <td data-cell="r8_col3">確認後に各科目へ振替<br>管理担当へエスカレーシメン</td>
+        <td data-cell="r8_col4">振替・確認後</td>
+        <td data-cell="r8_col5">月内に必ず精算。翌月繰越禁止。</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<footer>不動産賃貸管理　入金フローチャート　ver.2.2　／　作成日：2026年5月</footer>
+
+<!-- 編集ボタン -->
+<button class="edit-fab" onclick="openEditor()">✏️ フローを編集</button>
+
+<!-- 背景オーバーレイ -->
+<div id="overlay" onclick="closeEditor()"></div>
+
+<!-- 編集パネル -->
+<div id="editPanel">
+  <div class="ep-header">
+    <h2>✏️ フロー内容を編集</h2>
+    <button class="ep-close" onclick="closeEditor()">✕</button>
+  </div>
+  <div class="ep-body" id="epBody"></div>
+  <div class="ep-footer">
+    <div class="save-msg" id="saveMsg">✅ 保存して更新しました</div>
+    <div class="ep-btns">
+      <button class="btn-reset" onclick="resetToDefault()">🔄 リセット</button>
+      <button class="btn-save"  onclick="applyChanges()">💾 保存して更新</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  デフォルトのテキスト定義
+// ============================================================
+const DEFAULT_LABELS = {
+  // ─── メインフロー ───
+  start:    "入金発生\n銀行通知・入金明細を確認",
+  decB:     "振込名義人で\n物件名を識別できるか？",
+  stepC:    "管理担当へ確認連絡\n（電話・メール）\n★管理担当依頼（重要）",
+  stepE:    "仮受金として計上\n担当者へエスカレーション\n※月内に必ず精算",
+  decF:     "物件の管理区分を確認",
+
+  // ─── ③ 自社オーナー物件 ───
+  br1Label: "③ 自社オーナー物件（CoAM）",
+  stepG0:   "何か月分の賃料なのかを確認",
+  decG:     "当月分の賃料か？",
+  stepG1:   "営業外収益として計上\n科目：受取賃貸料\nメモタグ：物件名を記載\n取引先：賃貸管理_家賃支払",
+  stepG2:   "前受収益として計上\n★科目：前受収益\n★取引先：賃貸管理_家賃支払\n★メモタグ：物件名（必ず登録）",
+  stepG4:   "翌月末処理\n前受収益 → 受取賃貸料へ振替",
+
+  // ─── ② 管理受託物件 ───
+  br2Label:   "② 管理受託物件",
+  stepHCheck: "いえらぶの入金一覧表を確認",
+  decHType:   "新規契約 or 既存契約？",
+  stepH1:     "入金全額を顧客預り金として計上\n科目：顧客預り金",
+  stepHNew1:  "オーナー送金分を計上\n賃料・共益費・礼金\n科目：顧客預り金",
+  stepHNew2:  "敷金を計上（当社預かり）\n科目：顧客預り金\n★オーナーへの送金なし",
+  stepHNew3:  "当社収益分を計上\n新規契約料・24時間サポート・鍵交換代\n科目：前受収益\n★鍵交換代：業者支払い時に消耗品費へ振替",
+  stepH3:     "【翌月処理】いえらぶの出金一覧表を確認\n物件を特定する",
+  stepH4:     "預かった金額を取り消す\n（顧客預り金の取消）",
+  stepH5:     "賃貸管理収益として計上\n科目：売上高\n取引先：賃貸管理_家賃支払\n品目：賃貸収入\nメモタグ：物件名",
+
+  // ─── ① 売買精算関連 ───
+  br3Label:          "① 売買精算関連\n（引渡し月の賃料）",
+  stepI1:            "売買精算書と照合\n引渡し日・賃料負担日を確認",
+  decI_type:         "売却 or 仕入？",
+
+  // 売却側
+  stepI_sell_cur:    "当月分の賃料を精算\n科目：受取賃貸料（借方）\n※当月PLがマイナス残高になる",
+  stepI_sell_fut:    "翌月以降分を計上\n科目：前払金（資産）",
+  stepI_sell_trans:  "毎月末振替処理\n前払金 → 受取賃貸料（借方）へ振替",
+  stepI_sell_done:   "入居者より賃料受取後\n受取賃貸料（貸方）として計上\n→ 借方・貸方が相殺されゼロへ",
+  stepI_sell_mgmt:   "翌月より賃貸管理契約締結\n→ ② 管理受託物件\n　新規契約フローへ進む",
+
+  // 仕入側
+  stepI_buy_cur:     "当月分の賃料を受取\n科目：受取賃貸料（貸方）",
+  stepI_buy_fut:     "翌月以降分を計上\n科目：前受収益（負債）",
+  stepI_buy_trans:   "毎月末振替処理\n前受収益 → 受取賃貸料（貸方）へ振替",
+  decI_sold:         "仕入物件は販売済みか？",
+  stepI_buy_unsold:  "未販売のため\n自社オーナー物件として処理\n→ ③ 自社オーナー物件フローへ",
+};
+
+// ============================================================
+//  初回ロード：古いキーを自動クリア → L に確定
+// ============================================================
+let L;
+(function cleanStaleKeys() {
+  const saved = JSON.parse(localStorage.getItem('flowLabels') || '{}');
+  const validKeys = new Set(Object.keys(DEFAULT_LABELS));
+  let changed = false;
+  for (const k of Object.keys(saved)) {
+    if (!validKeys.has(k)) { delete saved[k]; changed = true; }
+  }
+  if (changed) localStorage.setItem('flowLabels', JSON.stringify(saved));
+  L = Object.assign({}, DEFAULT_LABELS, saved);
+})();
+
+// ============================================================
+//  ユーティリティ
+// ============================================================
+// ノードラベル用：改行 → \n、ダブルクォート → シングル
+function esc(text) {
+  return (text || '').replace(/\n/g, '\\n').replace(/"/g, "'");
+}
+// subgraphタイトル用：改行 → スペース
+function sgTitle(text) {
+  return (text || '').split('\n')[0].replace(/"/g, "'");
+}
+
+// ============================================================
+//  フローチャート（1枚・subgraphで管理区分を囲む）
+// ============================================================
+function buildMainDiagram() {
+  return `flowchart TD
+    START(["${esc(L.start)}"])
+    START --> B{"${esc(L.decB)}"}
+    B -->|"❌ 識別不明"| C["${esc(L.stepC)}"]
+    C --> D{"確認結果"}
+    D -->|"✅ 物件・入居者が判明"| F{"${esc(L.decF)}"}
+    D -->|"確認不可\\n（無応答など）"| E["${esc(L.stepE)}"]
+    B -->|"✅ 識別完了"| F
+
+    subgraph SG3["${sgTitle(L.br3Label)}"]
+      I1["${esc(L.stepI1)}"]
+      I1 --> IDEC{"${esc(L.decI_type)}"}
+
+      IDEC -->|"売却\\n（物件を売った）"| ISELL_CUR["${esc(L.stepI_sell_cur)}"]
+      ISELL_CUR --> ISELL_FUT["${esc(L.stepI_sell_fut)}"]
+      ISELL_FUT --> ISELL_TRANS["${esc(L.stepI_sell_trans)}"]
+      ISELL_TRANS --> ISELL_DONE["${esc(L.stepI_sell_done)}"]
+      ISELL_DONE --> ISELL_MGMT(["${esc(L.stepI_sell_mgmt)}"])
+
+      IDEC -->|"仕入\\n（物件を買った）"| IBUY_CUR["${esc(L.stepI_buy_cur)}"]
+      IBUY_CUR --> IBUY_FUT["${esc(L.stepI_buy_fut)}"]
+      IBUY_FUT --> IBUY_TRANS["${esc(L.stepI_buy_trans)}"]
+      IBUY_TRANS --> ISOLD{"${esc(L.decI_sold)}"}
+      ISOLD -->|"販売済み"| DONE3B(["✅ 処理完了"])
+      ISOLD -->|"未販売\\n（賃貸中）"| IBUY_UNSOLD(["→ ③ 自社オーナー物件\\n　フローで処理"])
+    end
+
+    subgraph SG2["${sgTitle(L.br2Label)}"]
+      HCHECK["${esc(L.stepHCheck)}"]
+      HCHECK --> HDEC{"${esc(L.decHType)}"}
+      HDEC -->|"既存契約"| H1["${esc(L.stepH1)}"]
+      HDEC -->|"新規契約"| HNEW1["${esc(L.stepHNew1)}"]
+      HNEW1 --> HNEW2["${esc(L.stepHNew2)}"]
+      HNEW2 --> HNEW3["${esc(L.stepHNew3)}"]
+      H1 --> H3["${esc(L.stepH3)}"]
+      HNEW3 --> H3
+      H3 --> H4["${esc(L.stepH4)}"]
+      H4 --> H5["${esc(L.stepH5)}"]
+      H5 --> DONE2(["✅ 処理完了"])
+    end
+
+    subgraph SG1["${sgTitle(L.br1Label)}"]
+      G0["${esc(L.stepG0)}"]
+      G0 --> GDEC{"${esc(L.decG)}"}
+      GDEC -->|"✅ 当月分"| G1["${esc(L.stepG1)}"]
+      G1 --> DONE1(["✅ 処理完了"])
+      GDEC -->|"⚠️ 当月分以外"| G2["${esc(L.stepG2)}"]
+      G2 --> G4["${esc(L.stepG4)}"]
+      G4 --> DONE1b(["✅ 処理完了\\n（翌月末振替後）"])
+    end
+
+    F -->|"${esc(L.br3Label)}"| I1
+    F -->|"${esc(L.br2Label)}"| HCHECK
+    F -->|"${esc(L.br1Label)}"| G0
+
+    style START  fill:#2b6cb0,color:#fff,stroke:none
+    style B      fill:#fefcbf,stroke:#d69e2e,color:#744210
+    style C      fill:#fff5f5,stroke:#c53030,color:#742a2a
+    style D      fill:#fefcbf,stroke:#d69e2e,color:#744210
+    style E      fill:#fff5f5,stroke:#c53030,color:#742a2a
+    style F      fill:#fefcbf,stroke:#d69e2e,color:#744210
+    style I1          fill:#ebf8ff,stroke:#2b6cb0,color:#1a365d
+    style IDEC        fill:#fefcbf,stroke:#d69e2e,color:#744210
+    style ISELL_CUR   fill:#fff5f5,stroke:#c53030,color:#742a2a
+    style ISELL_FUT   fill:#faf5ff,stroke:#6b46c1,color:#44337a
+    style ISELL_TRANS fill:#faf5ff,stroke:#6b46c1,color:#44337a
+    style ISELL_DONE  fill:#f0fff4,stroke:#276749,color:#1c4532
+    style ISELL_MGMT  fill:#fffaf0,stroke:#c05621,color:#7b341e
+    style IBUY_CUR    fill:#ebf8ff,stroke:#2b6cb0,color:#1a365d
+    style IBUY_FUT    fill:#faf5ff,stroke:#6b46c1,color:#44337a
+    style IBUY_TRANS  fill:#faf5ff,stroke:#6b46c1,color:#44337a
+    style ISOLD       fill:#fefcbf,stroke:#d69e2e,color:#744210
+    style DONE3B      fill:#276749,color:#fff,stroke:none
+    style IBUY_UNSOLD fill:#ebf8ff,stroke:#2b6cb0,color:#1a365d
+    style HCHECK fill:#ebf8ff,stroke:#2b6cb0,color:#1a365d
+    style HDEC   fill:#fefcbf,stroke:#d69e2e,color:#744210
+    style H1     fill:#ebf8ff,stroke:#2b6cb0,color:#1a365d
+    style HNEW1  fill:#ebf8ff,stroke:#2b6cb0,color:#1a365d
+    style HNEW2  fill:#ebf8ff,stroke:#2b6cb0,color:#1a365d
+    style HNEW3  fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
+    style H3     fill:#faf5ff,stroke:#6b46c1,color:#44337a
+    style H4     fill:#ebf8ff,stroke:#2b6cb0,color:#1a365d
+    style H5     fill:#ebf8ff,stroke:#2b6cb0,color:#1a365d
+    style DONE2  fill:#276749,color:#fff,stroke:none
+    style G0     fill:#ebf8ff,stroke:#2b6cb0,color:#1a365d
+    style GDEC   fill:#fefcbf,stroke:#d69e2e,color:#744210
+    style G1     fill:#ebf8ff,stroke:#2b6cb0,color:#1a365d
+    style DONE1  fill:#276749,color:#fff,stroke:none
+    style G2     fill:#fff5f5,stroke:#c53030,color:#742a2a
+    style G4     fill:#faf5ff,stroke:#6b46c1,color:#44337a
+    style DONE1b fill:#276749,color:#fff,stroke:none
+    style SG3 fill:#f0fff4,stroke:#276749,stroke-width:2
+    style SG2 fill:#fffdf5,stroke:#c05621,stroke-width:2
+    style SG1 fill:#f0f8ff,stroke:#2b6cb0,stroke-width:2`;
+}
+
+// ============================================================
+//  編集パネルのフィールド定義
+// ============================================================
+const FIELD_DEFS = [
+  { group: "メインフロー（識別・振り分け）" },
+  { key: "start",    label: "開始（入金発生）" },
+  { key: "decB",     label: "識別判断【菱形】" },
+  { key: "stepC",    label: "識別不明時の確認連絡" },
+  { key: "stepE",    label: "仮受金・エスカレーション" },
+  { key: "decF",     label: "管理区分の判断【菱形】" },
+
+  { group: "① 売買精算関連" },
+  { key: "br3Label",         label: "管理区分ラベル（矢印 & 囲みタイトル）" },
+  { key: "stepI1",           label: "精算書照合スヅップ" },
+  { key: "decI_type",        label: "売却 / 仕入 判断【菱形】" },
+  { key: "stepI_sell_cur",   label: "売却：当月分（受取賃貸料 借方）" },
+  { key: "stepI_sell_fut",   label: "売却：翌月以降（前払金）" },
+  { key: "stepI_sell_trans", label: "売却：毎月末振替処理" },
+  { key: "stepI_sell_done",  label: "売却：入居者賃料受取・相殺完了" },
+  { key: "stepI_sell_mgmt", label: "売却：賃貸管理契約締結（② 新規契約フローへ）" },
+  { key: "stepI_buy_cur",   label: "仕入：当月分（受取賃貸料 貸方）" },
+  { key: "stepI_buy_fut",    label: "仕入：翌月以降（前受収益）" },
+  { key: "stepI_buy_trans",  label: "仕入：毎月末振替処理" },
+  { key: "decI_sold",        label: "仕入物件 販売済み\n�.��Vk�C�>ǖ���D����(��쁭��耉�ѕ�%}���}չͽ����������耋��W����k�r��ǖ�ˊK�F�������
+���+�������((��쁝ɽ��耋�F������B�>_��_�&���؈���(��쁭��耉���1��������������耋����B�2�"���g����#�~��6�����nˎ��
+��
+��#����$����(��쁭��耉�ѕ�!
+������������耋���G����������뢪7�
+���\����(��쁭��耉���!Q�������������耋�Zâ�<����^���`��"��Z��C�>ǖ���D����(��쁭��耉�ѕ� Ĉ�����������耋�^���c��G����k��C�
++�G��#��(����(��쁭��耉�ѕ�!9��Ĉ��������耋�Zâ�?��G����k�
+���+���G�"����#��(����(��쁭��耉�ѕ�!9��Ȉ��������耋�Zâ�?��G����k�VߦG����#��(��а(��쁭��耉�ѕ�!9��̈��������耋�Zâ�?��G����k��O����>;�n+�"����#��(����(��쁭��耉�ѕ� ̈�����������耋��3�r#���B�F���k��G�����������&���۞&疺h����(��쁭��耉�ѕ� Ј�����������耋��3�r#���B�F���k��C�/�
++�G�>[�� ����(��쁭��耉�ѕ� Ԉ�����������耋��3�r#���B�F���k����㞺��B�>;�n+����#��(����((��쁝ɽ��耋�F��������
+���+��&���۾�!
+�7��$����(��쁭��耉���1������������耋����B�2�"���g����#�~��6�����nˎ��
+��
+��#����$����(��쁭��耉�ѕ������������耋�r#�VÞ�뢪7�
+���\����(��쁭��耉���������������耋��O�r#�"�"��Z��C�>ǖ���D����(��쁭��耉�ѕ�Ĉ���������耋��O�r#�"��k�>;�n+��#��(����(��쁭��耉�ѕ�Ȉ���������耋��O�r#�"��[��k�&7�>_�>;�n+��#��(����(��쁭��耉�ѕ�Ј���������耋��O�r#�"��[��k��3�r#�r����B����)t�((���������������������������������������������������������������(�����ޣ�n�G�7���U$��R�"@(���������������������������������������������������������������)�չ�ѥ����ե����ѽ�U$����(������Ё����􁑽�յ��й���������	�%�����	��䜤�(�����乥����!Q50�􀜜�(����Ё�ɽ����ձ��(����Ȁ�����Ё�������%1}L���(�������������ɽ�����(�����������ɽ�������久�����
+������ɽ����(�������ɽ���􁑽�յ��й�ɕ�ѕ�����Р���؜��(�������ɽ��������9����􀝕���ɽ����(����������Ёѥѱ��􁑽�յ��й�ɕ�ѕ�����Р���؜��(������ѥѱ�������9����􀝕���ɽ���ѥѱ���(������ѥѱ��ѕ��
+��ѕ�Ѐ􁑕���ɽ���(�������ɽ���������
+�����ѥѱ���(���������ѥ�Ք�(�����(��������Ёم����1m�������t�������(��������Ёɽ�̀�5�Ѡ�����԰�5�Ѡ����Ȱ��م����э���q��������mt������Ѡ���Ȥ��(��������Ё������􁑽�յ��й�ɕ�ѕ�����Р���؜��(���������������9����􀝕���������(��������Ё����􁑽�յ��й�ɕ�ѕ�����Р���������(��������ѕ��
+��ѕ�Ѐ􁑕��������(���������ѵ��Ȁ􀝕�|������������(����������������
+����������(��������Ёф�􁑽�յ��й�ɕ�ѕ�����Р�ѕ�хɕ����(����ф�������􀝕�|������������(����ф�ɽ�̀��ɽ���(����ф�م�Ք��م��(����������������
+�����ф��(��������Ё���Ѐ􁑽�յ��й�ɕ�ѕ�����Р���؜��(�������й�����9����􀝕�����М�(�������йѕ��
+��ѕ�Ѐ􀟊ԃ���R碆3���7���d��(����������������
+��������Ф�(���������ɽ�����ɽ���������
+������������(���(�������ɽ�������久�����
+������ɽ����)�((���������������������������������������������������������������(�����G�7���Z/�Z$(���������������������������������������������������������������)�չ�ѥ���������ѽȠ���(���ե����ѽ�U$���(�����յ��й���������	�%�������A������������1��й������������(�����յ��й���������	�%����ٕɱ�䜤������1��й������������)�)�չ�ѥ������͕��ѽȠ���(�����յ��й���������	�%�������A������������1��йɕ��ٔ���������(�����յ��й���������	�%����ٕɱ�䜤������1��йɕ��ٔ���������)�((���������������������������������������������������������������(�����W�����w��`����nӚZ�(���������������������������������������������������������������)�չ�ѥ��������
+�����̠���(����Ȁ�����Ё�������%1}L���(���������������䤁���ѥ�Ք�(��������Ё���􁑽�յ��й���������	�%�����|������������(������������1m�������t�􁕰�م�Ք�(���(�������MѽɅ���͕�%ѕ�������1����̜��)M=8���ɥ�����0���(��ɕ���������(������Ё�͜�􁑽�յ��й���������	�%���ٕͅ5͜���(���͜������1��й�����͡�ܜ��(��͕�Q�����Р�������͜������1��йɕ��ٔ��͡�ܜ���������)�()�չ�ѥ���ɕ͕�Q����ձР���(������������ɴ���W���������
+K�g����"w�r�����"�_���g�/��}q��O���N7��s������"�o���o�
+O�����ɕ��ɸ�(��0��=����й��ͥ�������U1Q}1	1L��(�������MѽɅ���ɕ��ٕ%ѕ�������1����̜��(���ե����ѽ�U$���(��ɕ���������)�((���������������������������������������������������������������(�����
+׎{������[����
+��ώ��
+��Ϟޣ�n(���������������������������������������������������������������)��Ёх������5����􁙅�͔�()����ЁQ	1}U1QL���(����}�Ո耀���O�r#�"�����Zd��(����}����耟��G�n���k�>_�>[�����Zg��#�Zۚ����[�>;�n+��%q��>[��W�#��k����㞺��B��ۢ��R��&Uq������
+��
+þ�k�&���ۖB4��(����}����耟�S��#�6Ϛf��#��+��$��(����}����耟���G�r#���6Ϣ�#��(��(����}����耟��W�/�r#�"�/���k��뢪7�_���/�
+'��#��+���(����}�Ո耀���O�r#�"��[�����Zd��(����}����耟��G�n���k�&7�>_�>;�n)q��>[��W�#��k����㞺��B��ۢ��R��&Uq��b�����
+��
+þ�k�&���ۖB7��#���k�f�2˾�$��(����}����耟��3�r#�r����2��n����Bq��&7�>_�>;�n(��H��>_�>[�����Zd��(����}����耟��3�r#�r����2��n����B��0��(����}����耟�����
+��
+Î���&���ۖB7�f�2ˎ
+K��c�
+3�k�����(����}�Ո耀��^���c��G����(����}����耟��G�n���k��������C�
++�Eq���#���G����7��$��(����}����耟��#�
+'�ۖ�G�����������&���۞&疺iq��H���������C�
++�G�
+K�>[��!q��H���G�n���k��˒�+��aq���>[��W�#��k����㞺��B��ۢ��R��&Uq���N�n���k�����>;��q�������
+��
+þ�k�&���ۖB4��(����}����耟��3�r#���B�f��#��˒�+��c��#��+��$��(����}����耟�r#�r�����������C�
++�G��/��c�3��/�
+'����
+#��Σ�?���(����}�Ո耀��Zâ�?��G����#���Zg��Ǟn+����G��$��(����}����耟��G�n���k��������C�
++�Eq���#�
+���+���G�"��$��(����}����耟��#�
+'�ۖ�G�����������&���۞&疺iq��H���������C�
++�G�
+K�>[��!q��H���G�n���k��˒�+��aq���>[��W�#��k����㞺��B��ۢ��R��&Uq���N�n���k�����>;��q�������
+��
+þ�k�&���ۖB4��(����}����耟��3�r#���B�f��#��˒�+��c��#��+��$��(����}����耟�P��(����}�Ո耀��Zâ�?��G����#�VߦG��$��(����}����耟��G�n���k��������C�
++�Eq���#��O����3��C�/�
++��$��(����}����耟�
+���+������G���]q���#��O�������B��$��(����}����耟��S�
+�f�����B��(����}����耟�
+���+����G�_������O����3����B���(����}�Ո耀��Zâ�?��G����#�Zâ�?��G���Zg���Ӛf�ZO�
+׎w��#��6גꓚ>o��$��(����}����耟��G�n���k�&7�>_�>;�n)q���#��O����>;�n+�"��$��(����}����耟�6גꓚ>o�������R��&W��f��q���#�_�N����2��n���(����}����耟�&7�>_�>;�n+��#��+�f��(����}����耟�6גꓚ>o�������R��&W��f����#�_�N������k�2��n����(����}�Ո耀����˖6Ӿ�#�&���ێ
+K��ˎ����$��(����}����耀���O�r#�"��k�>_�>[�����Zg��#��Z��'��#��)q����O�r!A3���{�
+��+�
+皺/��c�����
+-q���3�r#�f7�"��k�&7�&W�G��#���R���'���_����#��(��(����}����耀���;�r#�r���k�&7�&W�D��H��>_�>[�����Zg��#��Z��'��2��n�q�������
+#�
++���Zg�>_�>[��3���n㚺�W�
+3�
+����q��H���3�r#�
+#�
++����㞺��B��G���ރ��@��(����}����耀���������Zg�>_�>[��n㚺��1q���#��3�r#�
+#�
++����B��G���Z/��/��$��(����}����耀���ˢ�ߞ����_�n�����B#����#���O�r!A3�3�{�
+��+�
+�����
+/�
+���Σ�?��n㚺떺3����3���F������B�>_��_�&���؃�Zâ�?��G���W�������(���݉}�Ո耀���W����#�&���ێ
+K��ߎ����$��(���݉}����耟��O�r#�"��k�>_�>[�����Zg��#���Z��'���_���>_�>Yq���3�r#�f7�"��k�&7�>_�>;�n+��#�ʃ�
+׾�'���_����#��(��(���݉}����耟��;�r#�r���k�&7�>_�>;�n(��H��>_�>[�����Zg��#���Z��'��2��n���(���݉}����耟��3�r#�f7��2��n����B��0��(���݉}����耟�ʧ��˖�3�����B��3����r��ʧ��˾�#�����ⷾ�'����ӖB#���F��������
+���+��&���ێW�������(����}�Ո耀��>_�D��(����}����耟��G�n���k�>_�D��(����}����耟��뢪7��3���B��G�n���2��n�q�����B�.��O��
+��
+�
+�����
+ߎ��̜�(����}����耟�2��n��뢪7��0��(����}����耟�r#������k�����_���3�r#��â�+��������)��()�չ�ѥ�������Mյ�����ф����(������Ёٕͅ���)M=8����͔������MѽɅ������%ѕ����յ�����ф������������(�����յ��й�Օ��M����ѽ�����m��ф�����t�����������������(��������Ёѕ�Ѐ�ٕͅ�m�����х͕й����t�(��������ѕ�Ѐ���չ�����������������!Q50��ѕ�йɕ�������q������������(�����)�()�չ�ѥ���ѽ����Q������Р���(��х������5�����х������5����(������Ё����̀��􁑽�յ��й�Օ��M����ѽ�����m��ф�����t���(������Ё����	Ѹ��􁑽�յ��й���������	�%���щ����	Ѹ���(������Ёɕ͕�	Ѹ�􁑽�յ��й���������	�%���щ�I�͕�	Ѹ���((������х������5������(��������̹�������������쁕�����ѕ����х�������Ք�����(��������	Ѹ�ѕ��
+��ѕ�Ѐ���~J�����[���
+K��w��`��(��������	Ѹ������9��������щ���Ѹ�щ���Ѹ�ٔͅ��(����ɕ͕�	Ѹ���屔��������􀝥�������������(��􁕱͔��(��������Ё��ф�����(��������̹��������������(��������хm�����х͕й����t�􁕰������Q����(������������ѕ����х����􀝙��͔��(�������(���������MѽɅ���͕�%ѕ����յ�����ф���)M=8���ɥ����䡑�ф���(��������	Ѹ�ѕ��
+��ѕ�Ѐ�􀟊r?��<����[���
+K�ޣ�n��(��������	Ѹ������9��������щ���Ѹ�щ���Ѹ����М�(����ɕ͕�	Ѹ���屔��������􀝹�����(���)�()�չ�ѥ���ɕ͕�Q�����ф����(������������ɴ�����[��������
+K�g����"w�r�����"�_���g�/��}q��O���N7��s������"�o���o�
+O�����ɕ��ɸ�(�������MѽɅ���ɕ��ٕ%ѕ����յ�����ф���(�����յ��й�Օ��M����ѽ�����m��ф�����t�����������������(��������Ё�����Q	1}U1QMm�����х͕й����t�(���������������չ�����������������!Q50�􁑕��ɕ�������q������������(�����)�((���������������������������������������������������������������(����5�ɵ�������ώ���ώ
+�(���������������������������������������������������������������)��Ё}͕Ā���()��幌��չ�ѥ���ɕ�������Ʌ�����х����%����������(��}͕Ĭ��(������Ё���􀝵�|����}͕��(������Ё���􁑽�յ��й���������	�%�����х����%���(����������!Q50���؁��屔�������������퍽���荄�����홽�еͥ���������>?�R�ⴸ��𽑥����(������(��������Ё��ٜ���݅�Ё��ɵ����ɕ���ȡ����������(������������!Q50���ٜ�(��������Ё�ٝ��􁕰��Օ��M����ѽȠ��ٜ���(���������ٝ�����ٝ����屔����]��Ѡ���������ٝ����屔������Ѐ􀝅�Ѽ���(��􁍅э�����Ȥ��(������������!Q50�������屔􉍽���荌������������������홽�еͥ���������>?�R�
+�����3�f�R�_���_�������
+׎#���&皺+�Z��_�� ��������'�3�B����
+3�������/��뢪7�_���?���W�������(�������ͽ�����ɽȡ��Ȥ�(���)�()��幌��չ�ѥ���ɕ����������(���݅�Ёɕ�������Ʌ�������Ʌ����������ե��5������Ʌ�����)�((���������������������������������������������������������������(�����"w�r�2X(��������������������������������������������������������������)��ɵ�������ѥ���锡�(���х��=�1���聙��͔�(��ѡ���耝����ձМ�(�����ݍ�����쁍��ٔ耝��̜ͥ�����������Ё��(������M����̰)���()ɕ���������)����Mյ�����ф���(�͍ɥ���(𽉽���(�ѵ��(
